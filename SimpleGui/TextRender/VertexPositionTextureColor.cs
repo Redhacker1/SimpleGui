@@ -1,7 +1,7 @@
 ﻿using System.Numerics;
 using Veldrid;
 
-namespace SimpleGui.TextRender
+namespace TextRender
 {
     internal struct VertexPositionTextureColor
     {

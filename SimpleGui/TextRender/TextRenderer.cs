@@ -1,11 +1,9 @@
 ﻿using System.Numerics;
-using DEngine.Render;
-using OpenSage;
 using Veldrid;
 
-namespace SimpleGui.TextRender
+namespace TextRender
 {
-    public class TextRenderer : DisposableBase
+    public class TextRenderer : DisposableManager
     {
         internal GraphicsDevice Device { get; private set; }
         internal TextShader Shader { get; private set; }

@@ -2,9 +2,9 @@
 using System.Numerics;
 using Veldrid;
 
-namespace SimpleGui.TextRender
+namespace TextRender
 {
-    public class Text : DisposableBase
+    public class Text : DisposableManager
     {
         private TextRenderer _renderer;
 
