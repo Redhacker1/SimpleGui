@@ -1,9 +1,9 @@
 ﻿using System;
-using System.Numerics;
-using Veldrid;
-using AssetPrimitives;
 using System.IO;
+using System.Numerics;
+using AssetPrimitives;
 using AssetProcessor;
+using Veldrid;
 
 namespace SimpleGui
 {
@@ -22,7 +22,7 @@ namespace SimpleGui
         
         public Image(string filename)
         {
-            Settings = Gui.Settings.DefaultControlSettings.Copy();
+            //Settings = Gui.Settings.DefaultControlSettings.Copy();
 
             ProcessedTexture = LoadFileAsset<ProcessedTexture>(filename);
         }
@@ -50,7 +50,7 @@ namespace SimpleGui
             _vertexBuffer = AddDisposable(Gui.Factory.CreateBuffer(vbDescription));
             device.UpdateBuffer(_vertexBuffer, 0, fillVertices);
 
-            ushort[] quadIndices = new ushort[] { 0, 1, 2, 3 };
+            ushort[] quadIndices = { 0, 1, 2, 3 };
             BufferDescription ibDescription = new BufferDescription(
                 4 * sizeof(ushort),
                 BufferUsage.IndexBuffer);
@@ -93,7 +93,7 @@ namespace SimpleGui
             object processedAsset;
             using (FileStream fs = File.OpenRead(name))
             {
-                processedAsset = isProcessor.Process(fs, ".png");
+                processedAsset = isProcessor.Process(fs, Path.GetExtension(name));
             }
 
             return (T)processedAsset;

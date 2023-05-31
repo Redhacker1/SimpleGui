@@ -1,18 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Numerics;
-using System.Text;
-
-namespace SimpleGui.Scene
+﻿namespace SimpleGui.Scene
 {
     public class SceneGraph
     {
         public SceneNode Root { get; set; } = new SceneNode();
-
-        public SceneGraph()
-        {
-
-        }
 
         public void Update()
         {

@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Numerics;
-using System.Text;
+﻿using System.Numerics;
 
 namespace SimpleGui
 {
@@ -9,7 +6,7 @@ namespace SimpleGui
     {
         public Text Label { get; protected set; }
 
-        public string Text { get; set; } = string.Empty;
+        public string Text { get; set; }
 
         public Button(string text)
         {

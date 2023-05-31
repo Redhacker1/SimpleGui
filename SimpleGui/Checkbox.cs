@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using TextRender;
 
 namespace SimpleGui
 {
@@ -18,7 +19,7 @@ namespace SimpleGui
 
         public virtual void Initialize()
         {
-            CheckControl = new Control()
+            CheckControl = new Control
             {
                 Size = new Vector2(Size.Y),
                 IsHoverable = true,
@@ -34,7 +35,7 @@ namespace SimpleGui
             {
                 Position = new Vector2(Size.Y + 4, 0),
                 Size = Size - new Vector2(Size.Y + 4, 0),
-                TextAlignment = TextRender.TextAlignment.Leading,
+                TextAlignment = TextAlignment.Leading,
             };
             Label.Initialize();
             AddChild(Label);

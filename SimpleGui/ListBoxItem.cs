@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Numerics;
-using System.Text;
+﻿using System.Numerics;
+using TextRender;
 
 namespace SimpleGui
 {
@@ -30,7 +28,7 @@ namespace SimpleGui
             {
                 Position = new Vector2(XPadding, 0),
                 Size = Size - new Vector2(XPadding, 0),
-                TextAlignment = TextRender.TextAlignment.Leading,
+                TextAlignment = TextAlignment.Leading,
             };
             Label.Initialize();
             AddChild(Label);

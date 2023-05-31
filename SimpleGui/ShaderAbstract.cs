@@ -1,6 +1,4 @@
-﻿using OpenSage;
-using System.IO;
-using System.Runtime.InteropServices;
+﻿using System.IO;
 using Veldrid;
 using Veldrid.SPIRV;
 
@@ -13,16 +11,27 @@ namespace SimpleGui
         public Shader FragmentShader { get; protected set; }
         public VertexLayoutDescription Layout { get; protected set; }
 
-        public ShaderAbstract(ResourceFactory factory, string name)
+        protected ShaderAbstract(ResourceFactory factory, string name, bool InvertY = false)
         {
             Name = name;
 
             var vertSpirvBytes = ReadEmbeddedAssetBytes($"SimpleGui.Shaders.{Name}.vert.spv");
             var fragSpirvBytes = ReadEmbeddedAssetBytes($"SimpleGui.Shaders.{Name}.frag.spv");
 
+            SpecializationConstant[] constants = null;
+            
+            if (factory.BackendType != GraphicsBackend.Vulkan || InvertY )
+            {
+                constants = new SpecializationConstant[] {new SpecializationConstant(0, false)};
+            }
+
             var shaders = factory.CreateFromSpirv(
                 new ShaderDescription(ShaderStages.Vertex, vertSpirvBytes, "main"),
-                new ShaderDescription(ShaderStages.Fragment, fragSpirvBytes, "main")
+                new ShaderDescription(ShaderStages.Fragment, fragSpirvBytes, "main"), 
+                new CrossCompileOptions()
+                {
+                    Specializations = constants
+                }
                 );
 
             VertexShader = shaders[0];
@@ -46,15 +55,11 @@ namespace SimpleGui
 
         protected byte[] ReadEmbeddedAssetBytes(string name)
         {
-            using (Stream stream = OpenEmbeddedAssetStream(name))
-            {
-                byte[] bytes = new byte[stream.Length];
-                using (MemoryStream ms = new MemoryStream(bytes))
-                {
-                    stream.CopyTo(ms);
-                    return bytes;
-                }
-            }
+            using Stream stream = OpenEmbeddedAssetStream(name);
+            byte[] bytes = new byte[stream.Length];
+            using MemoryStream ms = new MemoryStream(bytes);
+            stream.CopyTo(ms);
+            return bytes;
         }
     }
 }

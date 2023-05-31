@@ -1,5 +1,5 @@
-﻿using SixLabors.Fonts;
-using System.Numerics;
+﻿using System.Numerics;
+using SixLabors.Fonts;
 using Veldrid;
 
 namespace TextRender
@@ -113,11 +113,12 @@ namespace TextRender
             cl.SetIndexBuffer(indexBuffer, IndexFormat.UInt16);
             cl.SetGraphicsResourceSet(0, _renderer.Shader.ProjViewSet);
             cl.SetGraphicsResourceSet(1, textureSet);
+            cl.SetScissorRect(0, (uint)Position.X, (uint)Position.Y, (uint)Size.X, (uint)Size.Y);
             
             cl.DrawIndexed(
-                indexCount: (uint)4,
+                indexCount: 4,
                 instanceCount: 1,
-                indexStart: (uint)0,
+                indexStart: 0,
                 vertexOffset: 0,
                 instanceStart: 0);
         }

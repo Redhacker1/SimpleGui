@@ -1,9 +1,6 @@
-﻿using SimpleGui.Scene;
-using System;
-using System.Collections.Generic;
-using System.Drawing;
+﻿using System.Drawing;
 using System.Numerics;
-using System.Text;
+using SimpleGui.Scene;
 using Veldrid;
 
 namespace SimpleGui
@@ -17,10 +14,10 @@ namespace SimpleGui
 
         public virtual void Initialize()
         {
-            var topLeft = new Vector2(0, 0);
-            var topRight = new Vector2(0 + Size.X, 0);
-            var bottomLeft = new Vector2(0, 0 + Size.Y);
-            var bottomRight = new Vector2(0 + Size.X, 0 + Size.Y);
+            Vector2 topLeft = new Vector2(0, 0);
+            Vector2 topRight = new Vector2(0 + Size.X, 0);
+            Vector2 bottomLeft = new Vector2(0, 0 + Size.Y);
+            Vector2 bottomRight = new Vector2(0 + Size.X, 0 + Size.Y);
             
             VertexPositionColor[] quadVertices =
             {
@@ -36,7 +33,7 @@ namespace SimpleGui
             _vertexBuffer = Gui.Factory.CreateBuffer(vbDescription);
             Gui.Device.UpdateBuffer(_vertexBuffer, 0, quadVertices);
 
-            ushort[] quadIndices = new ushort[] { 0, 1, 2, 3 };
+            ushort[] quadIndices = { 0, 1, 2, 3 };
             BufferDescription ibDescription = new BufferDescription(
                 32 * sizeof(ushort),
                 BufferUsage.IndexBuffer);

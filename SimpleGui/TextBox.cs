@@ -1,9 +1,11 @@
-﻿using SixLabors.Fonts;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
+using SixLabors.Fonts;
+using Veldrid;
+using TextAlignment = TextRender.TextAlignment;
 
 namespace SimpleGui
 {
@@ -15,7 +17,7 @@ namespace SimpleGui
         public ColoredQuad CursorControl { get; set; }
 
         protected int XPadding = 6;
-        protected int CursorIndex { get; set; } = 0;
+        protected int CursorIndex { get; set; }
 
         public TextBox()
         {
@@ -33,12 +35,12 @@ namespace SimpleGui
             {
                 Size = Size - new Vector2(XPadding, 0),
                 Position = new Vector2(XPadding, 0),
-                TextAlignment = TextRender.TextAlignment.Leading,
+                TextAlignment = TextAlignment.Leading,
             };
             Label.Initialize();
             AddChild(Label);
 
-            CursorControl = new ColoredQuad()
+            CursorControl = new ColoredQuad
             {
                 Size = new Vector2(2, Label.Size.Y - 6),
                 Position = new Vector2(2, 3),
@@ -48,52 +50,65 @@ namespace SimpleGui
             AddChild(CursorControl);
         }
 
+        bool firstBackSpacePressed = false;
         public override void Update()
         {
             base.Update();
 
-            if (IsMouseHoveringOver)
-            {
-                if (Text.Length > 0)
-                {
-                    if (InputTracker.GetKeyDown(Veldrid.Key.BackSpace))
-                    {
-                        if (CursorIndex > 0)
-                        {
-                            if (CursorIndex == Text.Length)
-                            {
-                                Text = Text.Substring(0, Text.Length - 1);
-                            }
-                            else
-                            {
-                                var restOfLine = Text.Substring(CursorIndex, (Text.Length - CursorIndex));
-                                Text = Text.Substring(0, CursorIndex - 1) + restOfLine;
-                            }
-                            Label.Content = Text;
-                            Label.Recreate();
-                            CursorIndex--;
-                            CursorControl.Position = GetTextIndexPosition(CursorIndex);
-                        }
-                    }
-                    else if (InputTracker.GetKeyDown(Veldrid.Key.Delete))
-                    {
-                        if (CursorIndex < Text.Length)
-                        {
-                            var startLine = Text.Substring(0, CursorIndex);
-                            Text = startLine + Text.Substring(CursorIndex + 1, (Text.Length - CursorIndex) - 1);
-                            Label.Content = Text;
-                            Label.Recreate();
-                        }
-                    }
-                }
+            bool repeat;
 
-                foreach (var k in InputTracker._newKeysThisFrame)
+            if (InputTracker.GetKeyDown(Key.BackSpace, out repeat) && !firstBackSpacePressed)
+            {
+                firstBackSpacePressed = true;
+            }
+            else if (!InputTracker.GetKeyDown(Key.BackSpace, out _))
+            {
+                firstBackSpacePressed = false;
+            }
+            
+            
+            if (Text.Length > 0)
+            {
+
+                if (firstBackSpacePressed || (!firstBackSpacePressed && repeat))
                 {
-                    if (KeyHelper.IsInputKey(k))
+
+                    if (CursorIndex > 0)
                     {
-                        InsertTextAtCursor(KeyHelper.GetKey(k).ToString());
+                        if (CursorIndex == Text.Length)
+                        {
+                            Text = Text[..^1];
+                        }
+                        else
+                        {
+                            string restOfLine = Text.Substring(CursorIndex, (Text.Length - CursorIndex));
+                            Text = Text[..(CursorIndex - 1)] + restOfLine;
+                        }
+                        Label.Content = Text;
+                        Label.Recreate();
+                        CursorIndex--;
+                        CursorControl.Position = GetTextIndexPosition(CursorIndex);
                     }
                 }
+                else if (InputTracker.GetKeyDown(Key.Delete, out _))
+                {
+                    if (CursorIndex < Text.Length)
+                    {
+                        string startLine = Text[..CursorIndex];
+                        Text = string.Concat(startLine, Text.AsSpan(CursorIndex + 1, (Text.Length - CursorIndex) - 1));
+                        Label.Content = Text;
+                        Label.Recreate();
+                    }
+                }
+                else if (!InputTracker.GetKeyDown(Key.Delete, out _) && !InputTracker.GetKeyDown(Key.BackSpace, out _))
+                {
+                }
+                
+            }
+
+            foreach (char k in InputTracker.FrameSnapshot.KeyCharPresses)
+            {
+                InsertTextAtCursor(k.ToString());
             }
         }
 
@@ -112,8 +127,8 @@ namespace SimpleGui
                 }
                 else
                 {
-                    var restOfLine = Text.Substring(CursorIndex, (Text.Length - CursorIndex));
-                    Text = Text.Substring(0, CursorIndex) + s + restOfLine;
+                    string restOfLine = Text.Substring(CursorIndex, (Text.Length - CursorIndex));
+                    Text = Text[..CursorIndex] + s + restOfLine;
                 }
             }
             else
@@ -132,7 +147,7 @@ namespace SimpleGui
         {
             base.OnMouseDown();
 
-            var cursorPos = GetCursorPosition();
+            Vector2 cursorPos = GetCursorPosition();
             if (cursorPos != Vector2.Zero)
             {
                 CursorControl.Position = cursorPos;
@@ -141,30 +156,30 @@ namespace SimpleGui
 
         public Vector2 GetTextIndexPosition(int index)
         {
-            var substr = Text.Substring(0, index);
-            var size = TextMeasurer.Measure(substr, new RendererOptions(Label.DrawableText.Font));
+            string substr = Text[..index];
+            FontRectangle size = TextMeasurer.Measure(substr, new TextOptions(Label.DrawableText.Font));
             return new Vector2(size.Width + Label.Position.X - 1, 3);
         }
 
         public Vector2 GetCursorPosition()
         {
-            var mousePos = InputTracker.MousePosition;
+            Vector2 mousePos = InputTracker.MousePosition;
             if (IsMouseHoveringOver)
             {
                 // Iterate all combinations of letters and get closest
 
-                var xPosList = new List<float>() { 0 };
+                List<float> xPosList = new List<float> { 0 };
                 for (int i = 1; i <= Text.Length; i++)
                 {
-                    var substr = Text.Substring(0, i);
-                    var size = TextMeasurer.Measure(substr, new RendererOptions(Label.DrawableText.Font));
+                    string substr = Text[..i];
+                    FontRectangle size = TextMeasurer.Measure(substr, new TextOptions(Label.DrawableText.Font));
 
                     xPosList.Add(size.Width);
                 }
 
-                var relativePos = mousePos - (Label.AbsolutePosition + new Vector2(CursorControl.Size.X, 0));
-                var minDistance = xPosList.Min(n => Math.Abs(relativePos.X - n));
-                var closest = xPosList.First(n => Math.Abs(relativePos.X - n) == minDistance);
+                Vector2 relativePos = mousePos - (Label.AbsolutePosition + CursorControl.Size with {Y = 0});
+                float minDistance = xPosList.Min(n => Math.Abs(relativePos.X - n));
+                float closest = xPosList.First(n => Math.Abs(Math.Abs(relativePos.X - n) - minDistance) < float.Epsilon);
                 CursorIndex = xPosList.IndexOf(closest);
                 
                 return new Vector2(closest + Label.Position.X - 1, 3);

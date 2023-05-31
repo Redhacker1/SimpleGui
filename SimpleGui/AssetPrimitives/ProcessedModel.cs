@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
 using Veldrid;
@@ -171,7 +170,7 @@ namespace AssetPrimitives
         {
             ProcessedMeshPart[] parts = reader.ReadObjectArray(ReadMeshPart);
 
-            return new ProcessedModel()
+            return new ProcessedModel
             {
                 MeshParts = parts
             };

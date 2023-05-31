@@ -1,16 +1,16 @@
 ﻿using System;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace AssetPrimitives
 {
     internal static class BinaryExtensions
     {
-        public static unsafe T ReadEnum<T>(this BinaryReader reader)
+        
+        
+        public static T ReadEnum<T>(this BinaryReader reader) where T : struct
         {
-            int i32 = reader.ReadInt32();
-            return Unsafe.Read<T>(&i32);
+            return (T)Enum.ToObject(typeof(T), reader.ReadInt32());
         }
 
         public static void WriteEnum<T>(this BinaryWriter writer, T value)
@@ -52,39 +52,27 @@ namespace AssetPrimitives
             return ret;
         }
 
-        public static unsafe void WriteBlittableArray<T>(this BinaryWriter writer, T[] array)
+        public static void WriteBlittableArray<T>(this BinaryWriter writer, T[] array) where T : unmanaged
         {
-            int sizeofT = Unsafe.SizeOf<T>();
-            int totalBytes = array.Length * sizeofT;
 
-            GCHandle handle = GCHandle.Alloc(array, GCHandleType.Pinned);
-            byte* ptr = (byte*)handle.AddrOfPinnedObject();
+            Span<byte> spanArray = MemoryMarshal.Cast<T, byte>(array.AsSpan());
 
             writer.Write(array.Length);
-            for (int i = 0; i < totalBytes; i++)
+            foreach (byte t in spanArray)
             {
-                writer.Write(ptr[i]);
+                writer.Write(t);
             }
-
-            handle.Free();
         }
 
-        public static unsafe T[] ReadBlittableArray<T>(this BinaryReader reader)
+        public static T[] ReadBlittableArray<T>(this BinaryReader reader) where T : unmanaged
         {
-            int sizeofT = Unsafe.SizeOf<T>();
             int length = reader.ReadInt32();
             T[] ret = new T[length];
-            GCHandle handle = GCHandle.Alloc(ret, GCHandleType.Pinned);
-
-            int totalBytes = length * sizeofT;
-            byte* ptr = (byte*)handle.AddrOfPinnedObject();
-            for (int i = 0; i < totalBytes; i++)
+            Span<byte> spanArray = MemoryMarshal.Cast<T, byte>(ret.AsSpan());
+            for (int i = 0; i < spanArray.Length; i++)
             {
-                ptr[i] = reader.ReadByte();
+                spanArray[i] = reader.ReadByte();
             }
-
-            handle.Free();
-
             return ret;
         }
     }

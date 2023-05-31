@@ -7,7 +7,7 @@ namespace AssetPrimitives
     {
         public static Dictionary<Type, BinaryAssetSerializer> Get()
         {
-            return new Dictionary<Type, BinaryAssetSerializer>()
+            return new Dictionary<Type, BinaryAssetSerializer>
             {
                 { typeof(ProcessedTexture), new ProcessedTextureDataSerializer() },
                 { typeof(ProcessedModel), new ProcessedModelSerializer() },

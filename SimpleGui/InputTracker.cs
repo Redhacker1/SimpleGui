@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Numerics;
 using Veldrid;
 
@@ -6,47 +7,48 @@ using Veldrid;
 
 namespace SimpleGui
 {
+    [Obsolete("Impement better API for input in engine")]
     public static class InputTracker
     {
-        public static HashSet<Key> _currentlyPressedKeys = new HashSet<Key>();
-        public static HashSet<Key> _newKeysThisFrame = new HashSet<Key>();
+        static readonly HashSet<Key> CurrentlyPressedKeys = new HashSet<Key>();
+        static readonly HashSet<Key> NewKeysThisFrame = new HashSet<Key>();
 
-        private static HashSet<MouseButton> _currentlyPressedMouseButtons = new HashSet<MouseButton>();
-        private static HashSet<MouseButton> _newMouseButtonsThisFrame = new HashSet<MouseButton>();
+        static readonly HashSet<MouseButton> CurrentlyPressedMouseButtons = new HashSet<MouseButton>();
+        static readonly HashSet<MouseButton> NewMouseButtonsThisFrame = new HashSet<MouseButton>();
 
         public static Vector2 MousePosition;
         public static InputSnapshot FrameSnapshot { get; private set; }
 
         public static bool GetKey(Key key)
         {
-            return _currentlyPressedKeys.Contains(key);
+            return CurrentlyPressedKeys.Contains(key);
         }
 
-        public static bool GetKeyDown(Key key)
+        public static bool GetKeyDown(Key key, out bool Repeat)
         {
-            return _newKeysThisFrame.Contains(key);
+            Repeat = false;
+            return CurrentlyPressedKeys.Contains(key);
         }
 
         public static bool GetMouseButton(MouseButton button)
         {
-            return _currentlyPressedMouseButtons.Contains(button);
+            return CurrentlyPressedMouseButtons.Contains(button);
         }
 
         public static bool GetMouseButtonDown(MouseButton button)
         {
-            return _newMouseButtonsThisFrame.Contains(button);
+            return NewMouseButtonsThisFrame.Contains(button);
         }
 
         public static void UpdateFrameInput(InputSnapshot snapshot)
         {
             FrameSnapshot = snapshot;
-            _newKeysThisFrame.Clear();
-            _newMouseButtonsThisFrame.Clear();
+            NewKeysThisFrame.Clear();
+            NewMouseButtonsThisFrame.Clear();
 
             MousePosition = snapshot.MousePosition;
-            for (int i = 0; i < snapshot.KeyEvents.Count; i++)
+            foreach (KeyEvent ke in snapshot.KeyEvents)
             {
-                KeyEvent ke = snapshot.KeyEvents[i];
                 if (ke.Down)
                 {
                     KeyDown(ke.Key);
@@ -56,9 +58,8 @@ namespace SimpleGui
                     KeyUp(ke.Key);
                 }
             }
-            for (int i = 0; i < snapshot.MouseEvents.Count; i++)
+            foreach (MouseEvent me in snapshot.MouseEvents)
             {
-                MouseEvent me = snapshot.MouseEvents[i];
                 if (me.Down)
                 {
                     MouseDown(me.MouseButton);
@@ -72,29 +73,29 @@ namespace SimpleGui
 
         private static void MouseUp(MouseButton mouseButton)
         {
-            _currentlyPressedMouseButtons.Remove(mouseButton);
-            _newMouseButtonsThisFrame.Remove(mouseButton);
+            CurrentlyPressedMouseButtons.Remove(mouseButton);
+            NewMouseButtonsThisFrame.Remove(mouseButton);
         }
 
         private static void MouseDown(MouseButton mouseButton)
         {
-            if (_currentlyPressedMouseButtons.Add(mouseButton))
+            if (CurrentlyPressedMouseButtons.Add(mouseButton))
             {
-                _newMouseButtonsThisFrame.Add(mouseButton);
+                NewMouseButtonsThisFrame.Add(mouseButton);
             }
         }
 
         private static void KeyUp(Key key)
         {
-            _currentlyPressedKeys.Remove(key);
-            _newKeysThisFrame.Remove(key);
+            CurrentlyPressedKeys.Remove(key);
+            NewKeysThisFrame.Remove(key);
         }
 
         private static void KeyDown(Key key)
         {
-            if (_currentlyPressedKeys.Add(key))
+            if (CurrentlyPressedKeys.Add(key))
             {
-                _newKeysThisFrame.Add(key);
+                NewKeysThisFrame.Add(key);
             }
         }
     }

@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+﻿using TextRender;
 
 namespace SimpleGui
 {
@@ -7,7 +7,7 @@ namespace SimpleGui
         public string Content { get; set; }
         public string FontName { get; set; } = "Arial";
         public int FontSize { get; set; } = 14;
-        public TextRender.TextAlignment TextAlignment { get; set; } = TextRender.TextAlignment.Center;
+        public TextAlignment TextAlignment { get; set; } = TextAlignment.Center;
 
         public TextRender.Text DrawableText;
         
@@ -47,11 +47,6 @@ namespace SimpleGui
                 RemoveAndDispose(ref DrawableText);
             }
             Initialize();
-        }
-
-        public override void Update()
-        {
-            base.Update();
         }
 
         public override void Draw()

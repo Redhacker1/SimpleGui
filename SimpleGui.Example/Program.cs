@@ -1,4 +1,4 @@
-﻿using DEngine.Render;
+﻿using System;
 using System.Numerics;
 using System.Threading;
 using Veldrid;
@@ -23,10 +23,11 @@ namespace SimpleGui.Example
         private static Checkbox checkbox;
 
         private static ColorPicker colorPicker;
+        static Sdl2Window window;
 
-        static void Main(string[] args)
+        static void Main()
         {
-            WindowCreateInfo windowCI = new WindowCreateInfo()
+            WindowCreateInfo windowCI = new WindowCreateInfo
             {
                 X = 100,
                 Y = 100,
@@ -34,13 +35,20 @@ namespace SimpleGui.Example
                 WindowHeight = 540,
                 WindowTitle = "SimpleGui Example"
             };
-            Sdl2Window window = VeldridStartup.CreateWindow(ref windowCI);
+            window = VeldridStartup.CreateWindow(ref windowCI);
 
-            _graphicsDevice = VeldridStartup.CreateGraphicsDevice(window);
+            window.Resized += OnResize;
 
-            gui = new Gui(window, _graphicsDevice);
+            _graphicsDevice = VeldridStartup.CreateGraphicsDevice(window, new GraphicsDeviceOptions()
+            {
+                SwapchainDepthFormat = PixelFormat.D32_Float_S8_UInt
+            },
+                GraphicsBackend.OpenGL
+                );
 
-            control = new Control()
+            gui = new Gui(_graphicsDevice);
+
+            control = new Control
             {
                 Size = new Vector2(500, 500),
                 Position = new Vector2(5, 5),
@@ -72,22 +80,25 @@ namespace SimpleGui.Example
                 text.Content = "Hello";
                 text.Recreate();
 
-                colorPicker = new ColorPicker()
+                if (colorPicker != null)
                 {
+                    colorPicker.Dispose();
+                    colorPicker.RemoveSelfFromParent();
+                }
 
-                };
+                colorPicker = new ColorPicker();
                 colorPicker.Initialize();
                 colorPicker.SetCenterScreen();
                 gui.SceneGraph.Root.AddChild(colorPicker);
 
                 colorPicker.Closed = () =>
                 {
-                    gui.SceneGraph.Root.RemoveChild(colorPicker);
                     colorPicker.Dispose();
+                    colorPicker.RemoveSelfFromParent();
                 };
             };
 
-            textBox = new TextBox()
+            textBox = new TextBox
             {
                 Size = new Vector2(160, 34),
                 Position = new Vector2(5, 80),
@@ -96,7 +107,7 @@ namespace SimpleGui.Example
             textBox.Initialize();
             control.AddChild(textBox);
 
-            checkbox = new Checkbox()
+            checkbox = new Checkbox
             {
                 Size = new Vector2(120, 24),
                 Position = new Vector2(5, 120),
@@ -105,15 +116,15 @@ namespace SimpleGui.Example
             checkbox.Initialize();
             control.AddChild(checkbox);
 
-            image = new Image("gui/Test.png")
+            image = new Image("gui/color.png")
             {
-                Size = new Vector2(150, 150),
+                Size = new Vector2(300, 190.5f),
                 Position = new Vector2(5, 160),
             };
             image.Initialize();
             control.AddChild(image);
             
-            listBox = new ListBox()
+            listBox = new ListBox
             {
                 Size = new Vector2(120, 120),
                 Position = new Vector2(180, 5),
@@ -128,7 +139,7 @@ namespace SimpleGui.Example
 
             while (window.Exists)
             {
-                var snap = window.PumpEvents();
+                InputSnapshot snap = window.PumpEvents();
 
                 if (window.Exists)
                 {
@@ -148,7 +159,7 @@ namespace SimpleGui.Example
 
             // Create pipeline
             GraphicsPipelineDescription pipelineDescription = new GraphicsPipelineDescription();
-            pipelineDescription.BlendState = BlendStateDescription.SingleOverrideBlend;
+            pipelineDescription.BlendState = BlendStateDescription.SingleAdditiveBlend;
             pipelineDescription.DepthStencilState = new DepthStencilStateDescription(
                 depthTestEnabled: true,
                 depthWriteEnabled: true,
@@ -160,10 +171,10 @@ namespace SimpleGui.Example
                 depthClipEnabled: true,
                 scissorTestEnabled: false);
             pipelineDescription.PrimitiveTopology = PrimitiveTopology.TriangleStrip;
-            pipelineDescription.ResourceLayouts = System.Array.Empty<ResourceLayout>();
+            pipelineDescription.ResourceLayouts = Array.Empty<ResourceLayout>();
             pipelineDescription.ShaderSet = new ShaderSetDescription(
-                vertexLayouts: new VertexLayoutDescription[] { Gui.ColorShader.Layout },
-                shaders: new Shader[] { Gui.ColorShader.VertexShader, Gui.ColorShader.FragmentShader });
+                vertexLayouts: new[] { Gui.ColorShader.Layout },
+                shaders: new[] { Gui.ColorShader.VertexShader, Gui.ColorShader.FragmentShader });
             pipelineDescription.Outputs = _graphicsDevice.SwapchainFramebuffer.OutputDescription;
 
             _pipeline = factory.CreateGraphicsPipeline(pipelineDescription);
@@ -180,6 +191,7 @@ namespace SimpleGui.Example
             _commandList.SetFramebuffer(_graphicsDevice.SwapchainFramebuffer);
             _commandList.SetFullViewports();
             _commandList.ClearColorTarget(0, RgbaFloat.Black);
+            _commandList.ClearDepthStencil(1);
             _commandList.SetPipeline(_pipeline);
             _commandList.End();
             _graphicsDevice.SubmitCommands(_commandList);
@@ -197,6 +209,11 @@ namespace SimpleGui.Example
             _pipeline.Dispose();
             _commandList.Dispose();
             _graphicsDevice.Dispose();
+        }
+        
+        static void OnResize()
+        {
+            _graphicsDevice.ResizeMainWindow((uint)window.Width, (uint)window.Height);
         }
     }
 

@@ -13,7 +13,6 @@ namespace SimpleGui
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     internal class YamlIgnoreAttribute : Attribute
     {
-        public YamlIgnoreAttribute() { }
     }
 
     internal class TinyYamlNode
@@ -32,44 +31,38 @@ namespace SimpleGui
         // Convert an object to TinyYaml string
         public static string ToYaml<T>(this T obj)
         {
-            var nodes = ObjectToNodes(obj);
+            List<TinyYamlNode> nodes = ObjectToNodes(obj);
             return NodesToYaml(nodes);
         }
 
         // Write an object to TinyYaml file
         public static void ToYamlFile<T>(this T obj, string filename)
         {
-            var yaml = ToYaml(obj);
+            string yaml = ToYaml(obj);
 
             if (string.IsNullOrWhiteSpace(yaml))
                 return;
 
-            try
-            {
-                File.WriteAllText(filename, yaml);
-            }
-            catch (Exception ex)
-            {
-                throw ex;
-            }
+            File.WriteAllText(filename, yaml);
         }
     
         // Read a Yaml file and create an object
         public static T FromYamlFile<T>(string filename) where T : new()
         {
-            var nodes = FileToNodes(filename);
-            var result = new T();
-            var type = typeof(T);
+            List<TinyYamlNode> nodes = FileToNodes(filename);
+            T result = new T();
+            Type type = typeof(T);
 
             if (IsDictionary(type))
             {
                 return (T)NodesToDictionary(nodes, type.GenericTypeArguments[0], type.GenericTypeArguments[1]);
             }
-            else if (IsList(type))
+
+            if (IsList(type))
             {
                 return (T)NodesToList(nodes, type.GenericTypeArguments[0]);
             }
-            
+
             PopulateObject(result, nodes);
             return result;
         }
@@ -77,21 +70,24 @@ namespace SimpleGui
         // Read a Yaml file and create an object
         public static IList FromYamlFile(string filename, Type t)
         {
-            var nodes = FileToNodes(filename);
-            return (IList)NodesToList(nodes, t);
+            List<TinyYamlNode> nodes = FileToNodes(filename);
+            return NodesToList(nodes, t);
         }
 
         // Convert a dictionary object into yaml nodes
         private static List<TinyYamlNode> DictionaryToNodes(IDictionary obj)
         {
-            var dataTypes = DataAssembly.DefinedTypes;
-            var list = new List<TinyYamlNode>();
+            IEnumerable<TypeInfo> dataTypes = DataAssembly.DefinedTypes;
+            List<TinyYamlNode> list = new List<TinyYamlNode>();
             foreach (DictionaryEntry f in obj)
             {
-                var type = f.Value.GetType();
-                var strVal = TypeToString(f.Value, type, type.BaseType);
+                if (f.Value == null)
+                    continue;
+                
+                Type type = f.Value.GetType();
+                string strVal = TypeToString(f.Value, type, type.BaseType);
 
-                var node = new TinyYamlNode()
+                TinyYamlNode node = new TinyYamlNode
                 {
                     Name = f.Key.ToString(),
                     Value = strVal,
@@ -106,7 +102,7 @@ namespace SimpleGui
                     if (dataTypes.Any(x => x.Name == type.Name))
                     {
                         // It's a custom object, traverse
-                        var childList = ObjectToNodes(f.Value);
+                        List<TinyYamlNode> childList = ObjectToNodes(f.Value);
                         node.Nodes.AddRange(childList);
                     }
                 }
@@ -119,22 +115,20 @@ namespace SimpleGui
         // Convert a list object into yaml nodes
         private static List<TinyYamlNode> ListToNodes(IList obj)
         {
-            var dataTypes = DataAssembly.DefinedTypes;
-            var result = new List<TinyYamlNode>();
-            int index = 0;
-            foreach (var f in obj)
+            IEnumerable<TypeInfo> dataTypes = DataAssembly.DefinedTypes;
+            List<TinyYamlNode> result = new List<TinyYamlNode>();
+            foreach (object f in obj)
             {
-                var type = f.GetType();
-                var strVal = TypeToString(f, type, type.BaseType);
+                Type type = f.GetType();
+                string strVal = TypeToString(f, type, type.BaseType);
 
-                var node = new TinyYamlNode()
+                TinyYamlNode node = new TinyYamlNode
                 {
                     Name = string.Empty,
                     Value = strVal,
                     // TODO: Comment
                 };
                 result.Add(node);
-                index++;
 
                 if (string.IsNullOrWhiteSpace(strVal))
                 {
@@ -143,7 +137,7 @@ namespace SimpleGui
                     if (dataTypes.Any(x => x.Name == type.Name))
                     {
                         // It's a custom object, traverse
-                        var childList = ObjectToNodes(f);
+                        List<TinyYamlNode> childList = ObjectToNodes(f);
                         node.Nodes.AddRange(childList);
                     }
                 }
@@ -156,15 +150,15 @@ namespace SimpleGui
         // Convert a list of yaml nodes to a dictionary object of the desired types
         private static IDictionary NodesToDictionary(List<TinyYamlNode> list, Type dType1, Type dType2)
         {
-            var dataTypes = DataAssembly.DefinedTypes;
-            var dictType = typeof(Dictionary<,>).MakeGenericType(dType1, dType2);
-            var dict = (IDictionary)Activator.CreateInstance(dictType);
-
-            foreach (var f in list)
+            IEnumerable<TypeInfo> dataTypes = DataAssembly.DefinedTypes;
+            Type dictType = typeof(Dictionary<,>).MakeGenericType(dType1, dType2);
+            IDictionary dict = (IDictionary)Activator.CreateInstance(dictType);
+            bool valueIsData = dataTypes.Contains(dType2);
+            
+            foreach (TinyYamlNode f in list)
             {
-                var nameIsEnum = dType1.BaseType.Name == "Enum";
-                var valueIsEnum = dType2.BaseType.Name == "Enum";
-                var valueIsData = dataTypes.Contains(dType2);
+                bool nameIsEnum = dType1.BaseType?.Name == "Enum";
+                bool valueIsEnum = dType2.BaseType?.Name == "Enum";
                 object dataValue = null;
                 if (valueIsData)
                 {
@@ -172,11 +166,12 @@ namespace SimpleGui
                     PopulateObject(dataValue, f.Nodes);
                 }
 
-                var key = nameIsEnum ? Convert.ChangeType(Enum.Parse(dType1, f.Name), dType1) : Convert.ChangeType(f.Name, dType1);
-                var value = valueIsEnum ? Convert.ChangeType(Enum.Parse(dType2, f.Value), dType2) :
+                object key = nameIsEnum ? Convert.ChangeType(Enum.Parse(dType1, f.Name), dType1) : Convert.ChangeType(f.Name, dType1);
+                object value = valueIsEnum ? Convert.ChangeType(Enum.Parse(dType2, f.Value), dType2) :
                         valueIsData ? dataValue : Convert.ChangeType(f.Value, dType2);
 
-                dict.Add(key, value);
+                if (key != null)
+                    dict?.Add(key, value);
             }
 
             return dict;
@@ -186,53 +181,50 @@ namespace SimpleGui
         // Only supports classes
         private static IList NodesToList(List<TinyYamlNode> list, Type dType)
         {
-            var dataTypes = DataAssembly.DefinedTypes;
-            var dictType = typeof(List<>).MakeGenericType(dType);
-            var dict = (IList)Activator.CreateInstance(dictType);
+            IEnumerable<TypeInfo> dataTypes = DataAssembly.DefinedTypes;
+            Type dictType = typeof(List<>).MakeGenericType(dType);
+            IList dict = (IList) Activator.CreateInstance(dictType);
+            bool isData = dataTypes.Contains(dType);
 
-            foreach (var f in list)
+            foreach (TinyYamlNode f in list)
             {
-                var isEnum = dType.BaseType.Name == "Enum";
-                var isData = dataTypes.Contains(dType);
-                object dataValue = null;
                 if (isData)
                 {
-                    dataValue = Activator.CreateInstance(dType);
+                    object dataValue = Activator.CreateInstance(dType);
                     PopulateObject(dataValue, f.Nodes);
-                    dict.Add(dataValue);
+                    dict?.Add(dataValue);
                 }
             }
 
             return dict;
         }
 
-        private static bool IsDictionary(Type type) { return type.Name.StartsWith("Dictionary") || type.Name.StartsWith("IDictionary"); }
+        private static bool IsDictionary(MemberInfo type) { return type.Name.StartsWith("Dictionary") || type.Name.StartsWith("IDictionary"); }
 
-        private static bool IsList(Type type) { return type.Name.StartsWith("List") || type.Name.StartsWith("IList"); }
+        private static bool IsList(MemberInfo type) { return type.Name.StartsWith("List") || type.Name.StartsWith("IList"); }
 
         // Convert an object to yaml nodes
         private static List<TinyYamlNode> ObjectToNodes(object obj)
         {
-            var list = new List<TinyYamlNode>();
-            var type = obj.GetType();
-            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-            var fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
-            var dataTypes = DataAssembly.DefinedTypes;
+            List<TinyYamlNode> list = new List<TinyYamlNode>();
+            Type type = obj.GetType();
+            PropertyInfo[] properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+            IEnumerable<TypeInfo> dataTypes = DataAssembly.DefinedTypes;
 
             if (IsDictionary(type))
                 return DictionaryToNodes(obj as IDictionary);
-            else if (IsList(type))
+            if (IsList(type))
                 return ListToNodes(obj as IList);
 
-            var objToNodes = new Action<Type, object, string>((fieldType, value, name) =>
+            void ObjToNodes(Type fieldType, object value, string name)
             {
-                var baseType = fieldType.BaseType;
-                var valueStr = TypeToString(value, fieldType, baseType);
+                Type baseType = fieldType.BaseType;
+                string valueStr = TypeToString(value, fieldType, baseType);
 
-                var node = new TinyYamlNode()
+                TinyYamlNode node = new TinyYamlNode
                 {
-                    Name = name,
-                    Value = valueStr,
+                    Name = name, Value = valueStr,
                     // TODO: Comment
                 };
                 list.Add(node);
@@ -240,12 +232,12 @@ namespace SimpleGui
                 {
                     if (IsDictionary(fieldType))
                     {
-                        var childList = DictionaryToNodes(value as IDictionary);
+                        List<TinyYamlNode> childList = DictionaryToNodes(value as IDictionary);
                         node.Nodes.AddRange(childList);
                     }
                     else if (IsList(fieldType))
                     {
-                        var childList = ListToNodes(value as IList);
+                        List<TinyYamlNode> childList = ListToNodes(value as IList);
                         node.Nodes.AddRange(childList);
                     }
                     // It might be a type from DEngine.Data
@@ -253,22 +245,22 @@ namespace SimpleGui
                     {
                         if (value != null)
                         {
-                            var childList = ObjectToNodes(value);
+                            List<TinyYamlNode> childList = ObjectToNodes(value);
                             node.Nodes.AddRange(childList);
                         }
                     }
                 }
-            });
+            }
 
-            foreach (var f in fields)
+            foreach (FieldInfo f in fields)
             {
                 if (Attribute.IsDefined(f, typeof(YamlIgnoreAttribute)))
                     continue;
 
-                var value = f.GetValue(obj);
-                objToNodes(f.FieldType, value, f.Name);
+                object value = f.GetValue(obj);
+                ObjToNodes(f.FieldType, value, f.Name);
             }
-            foreach (var f in properties)
+            foreach (PropertyInfo f in properties)
             {
                 if (Attribute.IsDefined(f, typeof(YamlIgnoreAttribute)))
                     continue;
@@ -276,8 +268,8 @@ namespace SimpleGui
                 if (!f.CanWrite)
                     continue;
 
-                var value = f.GetValue(obj);
-                objToNodes(f.PropertyType, value, f.Name);
+                object value = f.GetValue(obj);
+                ObjToNodes(f.PropertyType, value, f.Name);
             }
             return list;
         }
@@ -292,56 +284,53 @@ namespace SimpleGui
         {
             TinyYamlNode rootNode = new TinyYamlNode();
 
-            var lastNodeAtLevel = new Func<int, TinyYamlNode>(desiredLevel =>
+            TinyYamlNode LastNodeAtLevel(int desiredLevel)
             {
-                TinyYamlNode lastNode = null;
                 int currentLevel = 0;
 
-                if (desiredLevel == currentLevel)
-                    return rootNode;
+                if (desiredLevel == currentLevel) return rootNode;
 
-                if (desiredLevel < 0)
-                    return null;
+                if (desiredLevel < 0) return null;
 
-                lastNode = rootNode;
+                TinyYamlNode lastNode = rootNode;
                 while (currentLevel < desiredLevel)
                 {
-                    if (lastNode.Nodes.Count == 0)
-                        return null;
+                    if (lastNode.Nodes.Count == 0) return null;
 
                     lastNode = lastNode.Nodes.Last();
                     currentLevel++;
                 }
+
                 return lastNode;
-            });
+            }
 
 
-            var lines = File.ReadAllLines(filename);
+            string[] lines = File.ReadAllLines(filename);
             int lineNum = 0;
             int level = 0;
-            foreach (var line in lines)
+            foreach (string line in lines)
             {
                 ++lineNum;
                 if (string.IsNullOrWhiteSpace(line))
                     continue;
 
                 string valBuf = string.Empty;
-                string name = string.Empty;
+                string name;
                 string value = string.Empty;
                 string comment = string.Empty;
 
-                var newLine = line.TrimEnd();
+                string newLine = line.TrimEnd();
                 int indexOfComment = newLine.IndexOf('#');
 
                 if (indexOfComment >= 0)
                 {
-                    var commentLine = newLine.Substring(indexOfComment).Trim();
+                    string commentLine = newLine.Substring(indexOfComment).Trim();
                     comment = commentLine.Substring(1).Trim();
                     newLine = newLine.Replace(commentLine, string.Empty).TrimEnd();
                 }
 
                 // Get depth
-                var tabCount = newLine.Length - newLine.Replace("\t", string.Empty).Length;
+                int tabCount = newLine.Length - newLine.Replace("\t", string.Empty).Length;
                 if (tabCount > level + 1)
                     throw new ArgumentException("Error at line " + lineNum + ": Improper indent.");
 
@@ -360,8 +349,8 @@ namespace SimpleGui
 
                 if (indexOfColon > 0)
                 {
-                    name = newLine.Substring(0, indexOfColon).Trim();
-                    value = newLine.Substring(indexOfColon + 1).Trim();
+                    name = newLine[..indexOfColon].Trim();
+                    value = newLine[(indexOfColon + 1)..].Trim();
                 }
                 else
                 {
@@ -372,7 +361,7 @@ namespace SimpleGui
                 //if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(comment))
                 //    throw new ArgumentException("Error at line " + lineNum + ": Both name and comment was missing.");
 
-                TinyYamlNode node = new TinyYamlNode()
+                TinyYamlNode node = new TinyYamlNode
                 {
                     Name = name,
                     Value = value,
@@ -385,7 +374,7 @@ namespace SimpleGui
                 }
                 else
                 {
-                    var parentNode = lastNodeAtLevel(level);
+                    TinyYamlNode parentNode = LastNodeAtLevel(level);
                     parentNode.Nodes.Add(node);
                 }
             }
@@ -400,14 +389,14 @@ namespace SimpleGui
         /// <returns></returns>
         private static string NodesToYaml(List<TinyYamlNode> list)
         {
-            var lineList = new List<string>();
+            List<string> lineList = new List<string>();
 
-            foreach (var n in list)
+            foreach (TinyYamlNode n in list)
             {
                 IterateNodesAsYaml(n, 0, ref lineList);
             }
 
-            var result = String.Join("\r\n", lineList);
+            string result = String.Join("\r\n", lineList);
             return result;
         }
 
@@ -418,53 +407,52 @@ namespace SimpleGui
         /// <param name="list"></param>
         private static void PopulateObject(object result, List<TinyYamlNode> list)
         {
-            var type = result.GetType();
-            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-            var fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
-            var dataTypes = DataAssembly.DefinedTypes;
+            Type type = result.GetType();
+            PropertyInfo[] properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+            IEnumerable<TypeInfo> dataTypes = DataAssembly.DefinedTypes;
 
-            foreach (var n in list)
+            foreach (TinyYamlNode n in list)
             {
-                var populateObjectField = new Func<Type, object>((fieldType) =>
+                object PopulateObjectField(Type fieldType)
                 {
-                    var val = ParseField(n, fieldType);
+                    object val = ParseField(n, fieldType);
                     if (val != null)
                     {
                         return val;
                     }
-                    else if (IsDictionary(fieldType)) // It might be a dictionary type
-                    {
-                        var dict = NodesToDictionary(n.Nodes, fieldType.GenericTypeArguments[0], fieldType.GenericTypeArguments[1]);
-                        return dict;
-                    }
-                    else if (IsList(fieldType))
-                    {
-                        var dict = NodesToList(n.Nodes, fieldType.GenericTypeArguments[0]);
-                        return dict;
-                    }
-                    else
-                    {
-                        // It might be a type from DEngine.Data
-                        if (dataTypes.Any(x => x.Name == fieldType.Name))
-                        {
-                            var newObj = Activator.CreateInstance(fieldType);
-                            PopulateObject(newObj, n.Nodes);
-                            return newObj;
-                        }
-                    }
-                    return null;
-                });
 
-                var matchingProperty = properties.FirstOrDefault(x => x.Name == n.Name);
-                if (matchingProperty != null && matchingProperty.CanWrite)
-                {
-                    matchingProperty.SetValue(result, populateObjectField(matchingProperty.PropertyType));
+                    if (IsDictionary(fieldType)) // It might be a dictionary type
+                    {
+                        IDictionary dict = NodesToDictionary(n.Nodes, fieldType.GenericTypeArguments[0], fieldType.GenericTypeArguments[1]);
+                        return dict;
+                    }
+                    if (IsList(fieldType))
+                    {
+                        IList dict = NodesToList(n.Nodes, fieldType.GenericTypeArguments[0]);
+                        return dict;
+                    }
+                    // It might be a type from DEngine.Data
+                    if (dataTypes.Any(x => x.Name == fieldType.Name))
+                    {
+                        object newObj = Activator.CreateInstance(fieldType);
+                        PopulateObject(newObj, n.Nodes);
+                        return newObj;
+                    }
+
+                    return null;
                 }
 
-                var matchingField = fields.FirstOrDefault(x => x.Name == n.Name);
+                PropertyInfo matchingProperty = properties.FirstOrDefault(x => x.Name == n.Name);
+                if (matchingProperty != null && matchingProperty.CanWrite)
+                {
+                    matchingProperty.SetValue(result, PopulateObjectField(matchingProperty.PropertyType));
+                }
+
+                FieldInfo matchingField = fields.FirstOrDefault(x => x.Name == n.Name);
                 if (matchingField != null)
                 {
-                    matchingField.SetValue(result, populateObjectField(matchingField.FieldType));
+                    matchingField.SetValue(result, PopulateObjectField(matchingField.FieldType));
                 }
 
                 if (matchingField == null && matchingProperty == null)
@@ -474,8 +462,8 @@ namespace SimpleGui
 
         private static float[] ParseVectorString(string vecString)
         {
-            var strVal = vecString.Replace("<", string.Empty).Replace(">", string.Empty);
-            return strVal.Split(new char[] { ',' }).Select(x => Convert.ToSingle(x.Trim())).ToArray();
+            string strVal = vecString.Replace("<", string.Empty).Replace(">", string.Empty);
+            return strVal.Split(new[] { ',' }).Select(x => Convert.ToSingle(x.Trim())).ToArray();
         }
 
         private static string TypeToString(object val, Type type, Type baseType)
@@ -487,121 +475,140 @@ namespace SimpleGui
             {
                 return (bool)val ? "true" : "false";
             }
-            else if (baseType == typeof(Enum))
+
+            if (baseType == typeof(Enum))
             {
                 return val.ToString();
             }
-            else if (type == typeof(string))
+
+            if (type == typeof(string))
             {
-                return val.ToString().Trim();
+                return val.ToString()?.Trim();
             }
-            else if (type == typeof(int))
-            {
-                return val.ToString();
-            }
-            else if (type == typeof(float))
+
+            if (type == typeof(int))
             {
                 return val.ToString();
             }
-            else if (type == typeof(double))
+
+            if (type == typeof(float))
             {
                 return val.ToString();
             }
-            else if (type == typeof(long))
+
+            if (type == typeof(double))
             {
                 return val.ToString();
             }
-            else if (type == typeof(Vector2))
+
+            if (type == typeof(long))
             {
                 return val.ToString();
             }
-            else if (type == typeof(Vector3))
+
+            if (type == typeof(Vector2))
             {
                 return val.ToString();
             }
-            else if (type == typeof(Vector4))
+
+            if (type == typeof(Vector3))
             {
                 return val.ToString();
             }
-            else if (type == typeof(Matrix4x4))
+
+            if (type == typeof(Vector4))
             {
                 return val.ToString();
             }
-            else if (type == typeof(string[]))
+
+            if (type == typeof(Matrix4x4))
+            {
+                return val.ToString();
+            }
+
+            if (type == typeof(string[]))
             {
                 return string.Join(", ", (string[])val);
             }
-            else if (type == typeof(int[]))
-            {
-                return string.Join(", ", (int[])val);
-            }
 
-            return null;
+            return type == typeof(int[]) ? string.Join(", ", (int[])val) : null;
         }
 
         private static object ParseField(TinyYamlNode n, Type type)
         {
-            var val = n.Value;
-            var baseType = type.BaseType;
+            Type baseType = type.BaseType;
 
             if (type == typeof(string))
             {
                 return n.Value.Trim();
             }
-            else if (baseType == typeof(Enum))
+
+            if (baseType == typeof(Enum))
             {
                 return Enum.Parse(type, n.Value);
             }
-            else if (type == typeof(bool))
+
+            if (type == typeof(bool))
             {
-                return n.Value.ToLowerInvariant() == "true" ? true : false;
+                return n.Value.ToLowerInvariant() == "true";
             }
-            else if (type == typeof(int))
+
+            if (type == typeof(int))
             {
                 return Convert.ToInt32(n.Value);
             }
-            else if (type == typeof(long))
+
+            if (type == typeof(long))
             {
                 return Convert.ToInt64(n.Value);
             }
-            else if (type == typeof(float))
+
+            if (type == typeof(float))
             {
                 return Convert.ToSingle(n.Value);
             }
-            else if (type == typeof(double))
+
+            if (type == typeof(double))
             {
                 return Convert.ToDouble(n.Value);
             }
-            else if (type == typeof(Vector2))
+
+            if (type == typeof(Vector2))
             {
-                var v = ParseVectorString(n.Value);
+                float[] v = ParseVectorString(n.Value);
                 return new Vector2(v[0], v[1]);
             }
-            else if (type == typeof(Vector3))
+
+            if (type == typeof(Vector3))
             {
-                var v = ParseVectorString(n.Value);
+                float[] v = ParseVectorString(n.Value);
                 return new Vector3(v[0], v[1], v[2]);
             }
-            else if (type == typeof(Vector4))
+
+            if (type == typeof(Vector4))
             {
-                var v = ParseVectorString(n.Value);
+                float[] v = ParseVectorString(n.Value);
                 return new Vector4(v[0], v[1], v[2], v[3]);
             }
-            else if (type == typeof(List<string>))
+
+            if (type == typeof(List<string>))
             {
-                return n.Nodes.Select(x => x.Name.Substring(1).Trim()).ToList();
+                return n.Nodes.Select(x => x.Name[1..].Trim()).ToList();
             }
-            else if (type == typeof(string[]))
+
+            if (type == typeof(string[]))
             {
                 return n.Value.Split(new[] { ',' }).Select(x => x.Trim()).ToArray();
             }
-            else if (type == typeof(int[]))
+
+            if (type == typeof(int[]))
             {
-                return n.Value.Split(new[] { ',' }).Select(x => Convert.ToInt32(n.Value)).ToArray();
+                return n.Value.Split(new[] { ',' }).Select(_ => Convert.ToInt32(n.Value)).ToArray();
             }
-            else if (type == typeof(float[]))
+
+            if (type == typeof(float[]))
             {
-                return n.Value.Split(new[] { ',' }).Select(x => Convert.ToSingle(n.Value)).ToArray();
+                return n.Value.Split(new[] { ',' }).Select(_ => Convert.ToSingle(n.Value)).ToArray();
             }
 
             return null;
@@ -609,7 +616,7 @@ namespace SimpleGui
 
         static void IterateNodesAsYaml(TinyYamlNode n, int level, ref List<string> list)
         {
-            var sb = new StringBuilder();
+            StringBuilder sb = new StringBuilder();
             sb.Append(string.Concat(Enumerable.Repeat("\t", level)));
             sb.Append(n.Name);
             sb.Append(": ");
@@ -617,7 +624,7 @@ namespace SimpleGui
             sb.Append(string.IsNullOrWhiteSpace(n.Comment) ? string.Empty : " # " + n.Comment);
 
             list.Add(sb.ToString());
-            foreach (var child in n.Nodes)
+            foreach (TinyYamlNode child in n.Nodes)
             {
                 IterateNodesAsYaml(child, level + 1, ref list);
             }

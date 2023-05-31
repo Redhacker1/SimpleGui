@@ -1,9 +1,7 @@
-﻿using SimpleGui.Scene;
-using SimpleGui;
-using System;
-using Veldrid;
-using Veldrid.Sdl2;
+﻿using System;
 using System.Numerics;
+using SimpleGui.Scene;
+using Veldrid;
 
 namespace SimpleGui
 {
@@ -19,7 +17,7 @@ namespace SimpleGui
     {
         public ControlColorType ColorType { get; set; } = ControlColorType.Default;
         public ControlState State { get; set; }
-        public bool IsMouseHoveringOver { get; protected set; }
+        protected bool IsMouseHoveringOver { get; set; }
         public bool IsClickable { get; set; }
         public bool IsHoverable { get; set; }
         public bool IsToggleable { get; set; }
@@ -56,11 +54,11 @@ namespace SimpleGui
             
             if (IsMouseHoveringOver)
             {
-                if (InputTracker.GetMouseButtonDown(global::Veldrid.MouseButton.Left))
+                if (InputTracker.GetMouseButtonDown(MouseButton.Left))
                 {
                     OnMouseDown();
                 }
-                if (InputTracker.GetMouseButton(Veldrid.MouseButton.Left))
+                if (InputTracker.GetMouseButton(MouseButton.Left))
                 {
                     IsMouseDown = true;
                     if (IsClickable)

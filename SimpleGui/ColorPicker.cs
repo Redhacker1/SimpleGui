@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Numerics;
-using System.Text;
 
 namespace SimpleGui
 {
@@ -10,11 +8,12 @@ namespace SimpleGui
     {
         public ImageColorSample SamplerImage;
         public ColoredQuad PreviewQuad;
+        private Text text;
 
         public Color SelectedColor;
 
         public bool Result;
-        public Button OKButton;
+        public Button OkButton;
         public Button CloseButton;
 
         public Action Closed = () => { };
@@ -36,7 +35,7 @@ namespace SimpleGui
             SamplerImage.Initialize();
             AddChild(SamplerImage);
 
-            PreviewQuad = new ColoredQuad()
+            PreviewQuad = new ColoredQuad
             {
                 Size = new Vector2(32, 32),
                 Position = new Vector2(5, 245),
@@ -45,28 +44,36 @@ namespace SimpleGui
             PreviewQuad.Initialize();
             AddChild(PreviewQuad);
 
+            text = new Text(PreviewQuad.Color.ToString());
+            text.Size = new Vector2(250, 32);
+            text.Initialize();
+            text.Position = new Vector2(32, 245);
+            AddChild(text);
+            
+            
+
 
             int x = 5;
             int y = 355;
-            OKButton = new Button("OK")
+            OkButton = new Button("OK")
             {
                 Position = new Vector2(x, y),
                 Size = new Vector2(90, 31),
             };
-            OKButton.Initialize();
-            AddChild(OKButton);
-            OKButton.MouseUp = () =>
+            OkButton.Initialize();
+            AddChild(OkButton);
+            OkButton.MouseUp = () =>
             {
                 Result = true;
                 Closed();
             };
 
-            x += (int)OKButton.Size.X + 5;
+            x += (int)OkButton.Size.X + 5;
 
             CloseButton = new Button("Cancel")
             {
                 Position = new Vector2(x, y),
-                Size = OKButton.Size,
+                Size = OkButton.Size,
             };
             CloseButton.Initialize();
             AddChild(CloseButton);
@@ -81,6 +88,14 @@ namespace SimpleGui
                 SelectedColor = SamplerImage.SelectedColor;
                 PreviewQuad.Color = SamplerImage.SelectedColor;
                 PreviewQuad.Recreate();
+                text.Content = SamplerImage.SelectedColor.ToString();
+                text.Recreate();
+            };
+
+            Closed += () =>
+            {
+                Parent.RemoveChild(this);
+                Dispose();
             };
         }
     }

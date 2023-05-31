@@ -1,41 +1,59 @@
-﻿using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Advanced;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
-using Veldrid;
-using AssetPrimitives;
-using SixLabors.ImageSharp.Processing.Processors.Transforms;
 using System.Runtime.InteropServices;
+using AssetPrimitives;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Advanced;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Processing.Processors.Transforms;
+using Veldrid;
 
 namespace AssetProcessor
 {
     internal class ImageSharpProcessor : BinaryAssetProcessor<ProcessedTexture>
     {
-        public unsafe override ProcessedTexture ProcessT(Stream stream, string extension)
+        public override ProcessedTexture ProcessT(Stream stream, string extension)
         {
+            
+            // Load the image.
             Image<Rgba32> image = Image.Load<Rgba32>(stream);
+            
+            // Create all the image Mipmaps
             Image<Rgba32>[] mipmaps = GenerateMipmaps(image, out int totalSize);
 
-            byte[] allTexData = new byte[totalSize];
-            long offset = 0;
-            fixed (byte* allTexDataPtr = allTexData)
+            // Allocate the working memory.
+            byte[] allTexData = new byte[totalSize * Unsafe.SizeOf<Rgba32>()];
+            
+            // Take the working memory and create a Rgba32 Span with it, makes the math a little easier to work with, less SizeOf calculations.
+            Span<Rgba32> textureData = MemoryMarshal.Cast<byte, Rgba32>(allTexData);
+
+            // Initialize the offset to Zero
+            int offset = 0;
+            
+            // For each mipmap
+            foreach (Image<Rgba32> mipmap in mipmaps)
             {
-                foreach (Image<Rgba32> mipmap in mipmaps)
+                // Calculate the amount of Rgba32 pixels in said mipmap
+                int mipPixels = mipmap.Width * mipmap.Height;
+                
+                // Slice the full memory for the Rgba32 mipmap texture into it's own span
+                Span<Rgba32> mipTexture  = textureData.Slice(offset, mipPixels);
+
+                // ImageSharp does not guarantee rows are stored Contiguously in memory, so this needs to be done per row.
+                for (int rowIndex = 0; rowIndex < mipmap.Height; rowIndex++)
                 {
-                    long mipSize = mipmap.Width * mipmap.Height * sizeof(Rgba32);
-                    fixed (Rgba32* pixelPtr = &MemoryMarshal.GetReference(mipmap.GetPixelSpan()))
-                    {
-                        Buffer.MemoryCopy(pixelPtr, allTexDataPtr + offset, mipSize, mipSize);
-                    }
-
-                    offset += mipSize;
+                    // Copy the pixels in the Row mipmap to the corresponding row in the texture
+                    mipmap.DangerousGetPixelRowMemory(rowIndex).Span.CopyTo(mipTexture.Slice(mipmap.Width * rowIndex, mipmap.Width));
                 }
+                
+                // Add the offset for the next loop.
+                offset += mipPixels;
             }
-
+            
+            // Create the texture and return it.
             ProcessedTexture texData = new ProcessedTexture(
                     PixelFormat.R8_G8_B8_A8_UNorm, TextureType.Texture2D,
                     (uint)image.Width, (uint)image.Height, 1,
@@ -46,9 +64,9 @@ namespace AssetProcessor
 
         // Taken from Veldrid.ImageSharp
 
-        private static readonly IResampler s_resampler = new Lanczos3Resampler();
+        private static readonly IResampler s_resampler = new LanczosResampler();
 
-        private static Image<T>[] GenerateMipmaps<T>(Image<T> baseImage, out int totalSize) where T : struct, IPixel<T>
+        private static Image<T>[] GenerateMipmaps<T>(Image<T> baseImage, out int totalSize) where T : unmanaged, IPixel<T>
         {
             int mipLevelCount = ComputeMipLevels(baseImage.Width, baseImage.Height);
             Image<T>[] mipLevels = new Image<T>[mipLevelCount];
@@ -66,7 +84,7 @@ namespace AssetProcessor
                 Debug.Assert(i < mipLevelCount);
                 mipLevels[i] = newImage;
 
-                totalSize += newWidth * newHeight * Unsafe.SizeOf<T>();
+                totalSize += newWidth * newHeight;
                 i++;
                 currentWidth = newWidth;
                 currentHeight = newHeight;

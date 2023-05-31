@@ -2,12 +2,12 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="Shaders\**" />
-    <EmbeddedResource Remove="Shaders\**" />
+    <!--<EmbeddedResource Remove="Shaders\**" /> -->
     <None Remove="Shaders\**" />
   </ItemGroup>
 
@@ -30,9 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Veldrid" Version="4.7.0" />
-    <PackageReference Include="Veldrid.SPIRV" Version="1.0.12" />
-    <PackageReference Include="Veldrid.StartupUtilities" Version="4.7.0" />
+    <PackageReference Include="Veldrid" Version="4.9.0" />
   </ItemGroup>
 
   <ItemGroup>

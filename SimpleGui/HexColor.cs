@@ -1,7 +1,7 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Drawing;
 using System.Numerics;
+using Newtonsoft.Json;
 using Veldrid;
 
 namespace SimpleGui
@@ -15,14 +15,8 @@ namespace SimpleGui
         [YamlIgnore]
         public Color Color
         {
-            get
-            {
-                return ColorTranslator.FromHtml("#" + Value);
-            }
-            set
-            {
-                Value = ColorTranslator.ToHtml(value).Substring(1);
-            }
+            get => ColorTranslator.FromHtml("#" + Value);
+            set => Value = ColorTranslator.ToHtml(value)[1..];
         }
 
         [JsonIgnore]
@@ -31,7 +25,7 @@ namespace SimpleGui
         {
             get
             {
-                var col = Color;
+                Color col = Color;
                 return new Vector4(
                     col.R / 255f,
                     col.G / 255f,

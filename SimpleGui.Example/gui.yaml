@@ -9,7 +9,7 @@ DefaultControlSettings:
 					Hover: 
 						Value: ffa5a5a5
 					Clicked: 
-						Value: ffffffff
+						Value: fffff000
 					Disabled: 
 						Value: ff990000
 				Border: 
@@ -33,7 +33,7 @@ DefaultControlSettings:
 			Form: 
 				Fill: 
 					Normal: 
-						Value: ff3f3f3f
+						Value: ff3f00
 					Hover: 
 						Value: ffa5a5a5
 					Clicked: 
@@ -288,4 +288,4 @@ Themes:
 					Disabled: 
 						Value: ff990000
 		CursorColor: 
-			Value: FFFFD905
+			Value: ff0000

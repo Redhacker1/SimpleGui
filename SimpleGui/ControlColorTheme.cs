@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Numerics;
 using Veldrid;
 
 namespace SimpleGui
@@ -46,9 +45,5 @@ namespace SimpleGui
         public HexColor Hover { get; set; } = (HexColor)RgbaFloat.LightGrey;
         public HexColor Clicked { get; set; } = (HexColor)RgbaFloat.White;
         public HexColor Disabled { get; set; } = (HexColor)RgbaFloat.DarkRed;
-
-        public ColorSet()
-        {
-        }
     }
 }

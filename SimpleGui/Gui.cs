@@ -1,19 +1,16 @@
-﻿using DEngine.Render;
-using SimpleGui.Scene;
-using SimpleGui.TextRender;
-using System;
+﻿using System;
 using System.IO;
 using System.Numerics;
+using DEngine.Render;
+using SimpleGui.Scene;
+using TextRender;
 using Veldrid;
-using Veldrid.Sdl2;
 
 namespace SimpleGui
 {
     public class Gui : IDisposable
     {
         public SceneGraph SceneGraph { get; set; } = new SceneGraph();
-
-        public static Sdl2Window Window { get; protected set; }
         public static GraphicsDevice Device { get; protected set; }
         public static ResourceFactory Factory { get; protected set; }
         public static CommandList CommandList;
@@ -27,11 +24,10 @@ namespace SimpleGui
 
         public static TextRenderer TextRenderer { get; protected set; }
         
-        public Gui(Sdl2Window window, GraphicsDevice device)
+        public Gui(GraphicsDevice device)
         {
             LoadSettings();
-
-            Window = window;
+            
             Device = device;
             Factory = device.ResourceFactory;
 
@@ -41,7 +37,7 @@ namespace SimpleGui
             TextureShader = new TextureShader(Factory);
             
             // Create pipeline
-            var pipelineDescription = new GraphicsPipelineDescription(
+            GraphicsPipelineDescription pipelineDescription = new GraphicsPipelineDescription(
                 BlendStateDescription.SingleAlphaBlend,
                 new DepthStencilStateDescription(
                     depthTestEnabled: true,
@@ -55,8 +51,8 @@ namespace SimpleGui
                     scissorTestEnabled: false),
                 PrimitiveTopology.TriangleStrip,
                 new ShaderSetDescription(
-                    vertexLayouts: new VertexLayoutDescription[] { ColorShader.Layout },
-                    shaders: new Shader[] { ColorShader.VertexShader, ColorShader.FragmentShader }),
+                    vertexLayouts: new[] { ColorShader.Layout },
+                    shaders: new[] { ColorShader.VertexShader, ColorShader.FragmentShader }),
                 new[] { ColorShader.ResourceLayout },
                 Device.SwapchainFramebuffer.OutputDescription
                 );
@@ -64,7 +60,7 @@ namespace SimpleGui
             Pipeline = Factory.CreateGraphicsPipeline(pipelineDescription);
 
 
-            var texturePipelineDesc = new GraphicsPipelineDescription(
+            GraphicsPipelineDescription texturePipelineDesc = new GraphicsPipelineDescription(
                 BlendStateDescription.SingleAlphaBlend,
                 new DepthStencilStateDescription(
                     depthTestEnabled: true,
@@ -78,8 +74,8 @@ namespace SimpleGui
                     scissorTestEnabled: false),
                 PrimitiveTopology.TriangleStrip,
                 new ShaderSetDescription(
-                    vertexLayouts: new VertexLayoutDescription[] { TextureShader.Layout },
-                    shaders: new Shader[] { TextureShader.VertexShader, TextureShader.FragmentShader }),
+                    vertexLayouts: new[] { TextureShader.Layout },
+                    shaders: new[] { TextureShader.VertexShader, TextureShader.FragmentShader }),
                 new[] { TextureShader.ProjViewLayout, TextureShader.TextureLayout },
                 Device.SwapchainFramebuffer.OutputDescription
                 );
@@ -134,59 +130,23 @@ namespace SimpleGui
 
         }
 
-        private Shader LoadShader(ShaderStages stage)
+
+        protected static void LoadSettings()
         {
-            string extension = null;
-            switch (Device.BackendType)
-            {
-                case GraphicsBackend.Direct3D11:
-                    extension = "hlsl.bytes";
-                    break;
-                case GraphicsBackend.Vulkan:
-                    extension = "spv";
-                    break;
-                case GraphicsBackend.OpenGL:
-                    extension = "glsl";
-                    break;
-                case GraphicsBackend.Metal:
-                    extension = "metallib";
-                    break;
-                default: throw new System.InvalidOperationException();
-            }
-
-            string entryPoint = stage == ShaderStages.Vertex ? "VS" : "FS";
-            string path = Path.Combine(System.AppContext.BaseDirectory, "Shaders", $"Vertex-{stage.ToString().ToLowerInvariant()}.{extension}");
-            byte[] shaderBytes = File.ReadAllBytes(path);
-            return Factory.CreateShader(new ShaderDescription(stage, shaderBytes, entryPoint));
-        }
-
-
-        protected void LoadSettings()
-        {
-            var filename = "gui.yaml";
+            const string filename = "gui.yaml";
             if (File.Exists(filename))
             {
-                try
-                {
-                    Settings = TinyYaml.FromYamlFile<GuiSettings>(filename);
-                }
-                catch (Exception ex)
-                {
-                    throw ex;
-                }
+                Settings = TinyYaml.FromYamlFile<GuiSettings>(filename);
             }
 
-            if (Settings == null)
-            {
-                Settings = new GuiSettings();
-            }
+            Settings ??= new GuiSettings();
 
             // Debug save
-            TinyYaml.ToYamlFile(Settings, filename);
+            Settings.ToYamlFile(filename);
 
 
             // Copy default theme to default settings
-            var defaultTheme = Settings.Themes[Settings.Theme];
+            ControlColorTheme defaultTheme = Settings.Themes[Settings.Theme];
             Settings.DefaultControlSettings.Colors = defaultTheme.Copy();
         }
 
@@ -225,12 +185,12 @@ namespace SimpleGui
         }
 
 
-        public static Vector2 GetCenterScreenPosFor(Vector2 size)
+        public static Vector2 GetCenterScreenPos(Vector2 size)
         {
-            var width = Device.SwapchainFramebuffer.Width;
-            var height = Device.SwapchainFramebuffer.Height;
+            uint width = Device.SwapchainFramebuffer.Width;
+            uint height = Device.SwapchainFramebuffer.Height;
 
-            var screenSize = new Vector2(width, height);
+            Vector2 screenSize = new Vector2(width, height);
             return (screenSize - size) / 2f;
         }
     }

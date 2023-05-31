@@ -1,9 +1,8 @@
 ﻿using System;
-using System.Numerics;
-using Veldrid;
-using SimpleGui.Scene;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
+using Veldrid;
 
 namespace SimpleGui
 {
@@ -95,7 +94,7 @@ namespace SimpleGui
 
             ushort[] quadIndices = Enumerable.Range(0, (int)(RenderCount * 4) - 1).Select(i => (ushort)i).ToArray();
             BufferDescription ibDescription = new BufferDescription(
-                (uint)RenderCount * 4 * sizeof(ushort),
+                RenderCount * 4 * sizeof(ushort),
                 BufferUsage.IndexBuffer);
             _indexBuffer = AddDisposable(Gui.Factory.CreateBuffer(ibDescription));
             Gui.Device.UpdateBuffer(_indexBuffer, 0, quadIndices);
@@ -118,25 +117,34 @@ namespace SimpleGui
 
         public void DrawBatched()
         {
-            Gui.CommandList.UpdateBuffer(Gui.ColorShader.WorldBuffer, 0, Matrix4x4.CreateTranslation(new Vector3(AbsolutePosition, 0)));
-            Gui.CommandList.SetVertexBuffer(0, _vertexBuffer);
-            Gui.CommandList.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-            //Gui.CommandList.SetGraphicsResourceSet(0, Gui.ColorShader.ResourceSet);
-            uint offset = (uint)State * 8;
+            if (_vertexBuffer != null && _indexBuffer != null)
+            {
+                Gui.CommandList.UpdateBuffer(Gui.ColorShader.WorldBuffer, 0, Matrix4x4.CreateTranslation(new Vector3(AbsolutePosition, 0)));
+                Gui.CommandList.SetVertexBuffer(0, _vertexBuffer);
+                Gui.CommandList.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+                //Gui.CommandList.SetGraphicsResourceSet(0, Gui.ColorShader.ResourceSet);
+                uint offset = (uint)State * 8;
 
-            // Issue a Draw command for a single instance with 4 indices.
-            Gui.CommandList.DrawIndexed(
-                indexCount: RenderCount,
-                instanceCount: 1,
-                indexStart: offset,
-                vertexOffset: 0,
-                instanceStart: 0);
+                // Issue a Draw command for a single instance with 4 indices.
+                Gui.CommandList.DrawIndexed(
+                    indexCount: RenderCount,
+                    instanceCount: 1,
+                    indexStart: offset,
+                    vertexOffset: 0,
+                    instanceStart: 0);   
+            }
 
         }
 
         public void SetCenterScreen()
         {
-            Position = Gui.GetCenterScreenPosFor(Size);
+            Position = Gui.GetCenterScreenPos(Size);
+        }
+
+        ~Control()
+        {
+            Control self = this;
+            this.RemoveAndDispose(ref self);
         }
     }
 }
